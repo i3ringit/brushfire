@@ -9,7 +9,10 @@ var Emailaddresses = require('machinepack-emailaddresses');
 var Passwords = require('machinepack-passwords');
 var Gravatar = require('machinepack-gravatar');
 var Strings = require('machinepack-strings');
-var Mailgun = require('machinepack-mailgun');
+var Mailgun = require('mailgun-js')({
+  apiKey: sails.config.mailgun.apiKey,
+  domain: sails.config.mailgun.domain
+});
 
 module.exports = {
 
@@ -233,34 +236,37 @@ module.exports = {
         // The Url that inclues the password recovery token as a parameter
         var recoverUrl = sails.config.mailgun.baseUrl + '/password-reset-form/' + updatedUser[0].passwordRecoveryToken;
 
+        console.log("recoverUrl: ", recoverUrl);
+
         var messageTemplate = 'Losing your password is a drag, but don\'t worry! \n' +
                    '\n' +
                    'You can use the following link to reset your password: \n' +
                    recoverUrl + '\n' +
                    '\n' +
-                   'Thanks, Chad';
+                   'Thanks, ACVS MailBot';
 
-        // Send a simple plaintext email.
-        Mailgun.sendPlaintextEmail({
-          apiKey: sails.config.mailgun.apiKey,
-          domain: sails.config.mailgun.domain,
-          toEmail: updatedUser[0].email,
-          subject: '[Brushfire] Please reset your password',
-          message: messageTemplate,
-          fromEmail: 'sailsinaction@gmail.com',
-          fromName: 'Chad McMarketing',
-        }).exec({
-          // An unexpected error occurred.
-          error: function(err) {
-            return res.negotiate(err);
+        var emailData = {
+          from: 'ACVS MailBot <contact@electrical-masters.com>',
+          to: updatedUser[0].email,
+          subject: '[ACVS] Please reset your password',
+          text: messageTemplate
+        };
 
-          },
-          // OK.
-          success:  function() {
+        console.log("messageTemplate: ", messageTemplate);
 
-            return res.ok();
+        console.log("apiKey: ", sails.config.mailgun.apiKey);
+        console.log("domain: ", sails.config.mailgun.domain);
+        console.log("toEmail: ", updatedUser[0].email);
 
-          },
+        Mailgun.messages().send(emailData, function (error, body) {
+
+          if(error) {
+            console.log("error: ", error);
+            return res.negotiate(error);
+          }
+
+          console.log("body: ", body);
+          return res.ok();
         });
       });
     });
@@ -493,7 +499,7 @@ module.exports = {
   },
 
   follow: function(req, res) {
-    
+
     // Find the user that owns the tutorial
     User.findOne({
       username: req.param('username'),
@@ -510,7 +516,7 @@ module.exports = {
         return res.forbidden();
       }
 
-      // Add the currently authenticated user-agent (user) as 
+      // Add the currently authenticated user-agent (user) as
       // a follower of owner of the tutorial
       foundUser.followers.add(req.session.userId);
       foundUser.save(function (err){
@@ -538,7 +544,7 @@ module.exports = {
   },
 
   unFollow: function(req, res) {
-    
+
     // Find the user that owns the tutorial
     User.findOne({
       username: req.param('username'),
@@ -549,7 +555,7 @@ module.exports = {
       if (err) return res.negotiate(err);
       if (!user) return res.notFound();
 
-      // Remove the currently authenticated user-agent (user) as 
+      // Remove the currently authenticated user-agent (user) as
       // a follower of owner of the tutorial
       user.followers.remove(req.session.userId);
       user.save(function (err){
